@@ -2,7 +2,7 @@
 MCP Server mounted inside a FastAPI app (Streamable HTTP transport).
 
 The MCP server exposes:
-  - Tools:     compound_interest, loan_payment
+  - Tools:     products://supermarket-products (dynamic data from MongoDB)
   - Resource:  rates://central-banks (static reference data)
 
 Run with:
@@ -14,44 +14,28 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
+from db import mongo_client, product_repo
 from mcp_instance import mcp
-import tools.products  # noqa: F401 -- imported for its @mcp.tool() registration
-
-# ---------------------------------------------------------------------------
-# 1. Define the MCP server (FastMCP handles the protocol for you)
-# ---------------------------------------------------------------------------
-# `mcp` lives in mcp_instance.py so tool modules (e.g. tools/products.py) can
-# import the same instance without importing server.py itself.
+import tools.products
 
 
-@mcp.tool()
-def loan_payment(principal: float, annual_rate: float, years: int) -> dict:
-    """Fixed monthly payment for an amortized loan (e.g. mortgage)."""
-    r = annual_rate / 12
-    n = years * 12
-    payment = principal * r / (1 - (1 + r) ** -n) if r else principal / n
-    return {
-        "monthly_payment": round(payment, 2),
-        "total_paid": round(payment * n, 2),
-        "total_interest": round(payment * n - principal, 2),
-    }
+@mcp.resource("retailers://supermarket")
+def retailers_supermarket_codes() -> str:
+    """Reference the codes used by the supermarket products tool to identify retailers."""
+    return "Supermercados Rey: SR | Riba Smith = RS | Super Xtra = SX"
 
+@mcp.resource("categories://supermarket")
+def categories_supermarket_codes() -> str:
+    """Reference the codes used by the supermarket products tool to identify categories."""
+    return "Abarrotes,Automotriz,Bebidas,Bebés,Carnes, Aves y Mariscos,Comida Preparada,Confites y Snacks,Congelados,Cuidado Personal y Belleza,Diversión y Entretenimiento,Embutidos y Deli,Farmacia,Ferretería y Herramientas,Frutas y Verduras,Hogar y Belleza,Licores,Lácteos y Huevos,Marca Propia,Mascotas,Moda y Calzado,Panadería,Papelería y Útiles,Perfumes y Fragancias,Pescados y Mariscos,Tecnología,Tierra de Emprendedores,Utensilios y Accesorios"
 
-@mcp.resource("rates://central-banks")
-def central_bank_rates() -> str:
-    """Reference policy rates (static demo data)."""
-    return "FED: 4.25% | ECB: 2.15% | BoE: 4.00%"
-
-
-# ---------------------------------------------------------------------------
-# 2. Mount it into a regular FastAPI app
-#    The session manager must run for the app's whole lifetime, so we tie it
-#    to FastAPI's lifespan.
-# ---------------------------------------------------------------------------
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    await product_repo.drop_indexes()
+    await product_repo.ensure_indexes()
     async with mcp.session_manager.run():
         yield
+    await mongo_client.close()
 
 
 app = FastAPI(title="Finance API + MCP", lifespan=lifespan)

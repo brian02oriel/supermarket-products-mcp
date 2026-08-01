@@ -24,16 +24,17 @@ class Product(BaseModel):
     image_url: str | None = None
 
 class ProductFilter(BaseModel):
+    search: str | None = None
     retailer_code: list[RETAILER_CODE] | None = None
     category: list[str] | None = None
     sub_category: list[str] | None = None
     brand: list[str] | None = None
-    from_undiscounted_price: float | None = None
-    to_undiscounted_price: float | None = None
-    from_price: float | None = None
-    to_price: float | None = None
+    undiscounted_price: float | None = None
+    price: float | None = None
     def to_filter(self) -> dict:
         f = {}
+        if self.search:
+            f["$text"] = {"$search": self.search}
         if self.retailer_code:
             f["retailer_code"] = {"$in": self.retailer_code}
         if self.category:
@@ -42,14 +43,10 @@ class ProductFilter(BaseModel):
             f["sub_category"] = {"$in": self.sub_category}
         if self.brand:
             f["brand"] = {"$in": self.brand}
-        if self.from_undiscounted_price is not None:
-            f["undiscounted_price"] = {**f.get("undiscounted_price", {}), "$gte": self.from_undiscounted_price}
-        if self.to_undiscounted_price is not None:
-            f["undiscounted_price"] = {**f.get("undiscounted_price", {}), "$lte": self.to_undiscounted_price}
-        if self.from_price is not None:
-            f["price"] = {**f.get("price", {}), "$gte": self.from_price}
-        if self.to_price is not None:
-            f["price"] = {**f.get("price", {}), "$lte": self.to_price}
+        if self.undiscounted_price is not None:
+            f["undiscounted_price"] = self.undiscounted_price
+        if self.price is not None:
+            f["price"] = self.price
         return f
 
 class SortField(str, Enum):
