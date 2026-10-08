@@ -9,7 +9,7 @@ El servidor MCP corre montado dentro de una app de FastAPI usando transporte Str
 ## Arquitectura
 
 ```
-server.py                          # App FastAPI + servidor MCP montado en /mcp
+server.py                          # App FastAPI + servidor MCP montado en /mcp 
 mcp_instance.py                    # Instancia compartida de FastMCP (evita imports circulares)
 db.py                              # Conexión a MongoDB y wiring del repositorio
 client.py                          # Cliente de ejemplo para probar el servidor MCP
